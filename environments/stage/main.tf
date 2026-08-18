@@ -1,5 +1,3 @@
-# environments/stage/main.tf
-
 terraform {
   required_providers {
     aws = {
@@ -10,17 +8,45 @@ terraform {
 }
 
 provider "aws" {
-  region = "ap-south-1" 
+  region = "ap-south-1"
 }
 
-module "vpc" {
-  source = "../../modules/vpc"
+# ====================================================================
+# Data Sources: Fetch the Shared Global Network
+# ====================================================================
+data "aws_vpc" "shared" {
+  tags = {
+    Environment = "global"
+  }
+}
+
+# ====================================================================
+# Stage Environment Resources
+# ====================================================================
+module "waf" {
+  source = "../../modules/waf"
 
   environment = "stage"
-  vpc_cidr    = "10.1.0.0/16"
-  azs         = ["ap-south-1a", "ap-south-1b", "ap-south-1c"]
-  
-  public_subnets       = ["10.1.0.0/24", "10.1.1.0/24", "10.1.2.0/24"]
-  private_app_subnets  = ["10.1.32.0/19", "10.1.64.0/19", "10.1.96.0/19"]
-  private_data_subnets = ["10.1.128.0/22", "10.1.132.0/22", "10.1.136.0/22"]
+  alb_arn     = "arn:aws:elasticloadbalancing:ap-south-1:123456789012:loadbalancer/app/echolife-stage-alb/dummy456"
+}
+
+module "s3" {
+  source = "../../modules/s3"
+
+  environment = "stage"
+  bucket_name = "echolife-media-stage-8374929"
+}
+
+resource "aws_security_group" "stage_rds" {
+  name        = "echolife-stage-rds-sg"
+  description = "Security group for Stage RDS instances"
+  vpc_id      = data.aws_vpc.shared.id
+
+  # Ingress from the shared EKS subnets
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.32.0/19", "10.0.64.0/19", "10.0.96.0/19"]
+  }
 }

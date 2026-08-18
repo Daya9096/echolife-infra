@@ -1,5 +1,3 @@
-# environments/prod/main.tf
-
 terraform {
   required_providers {
     aws = {
@@ -10,18 +8,45 @@ terraform {
 }
 
 provider "aws" {
-  region = "ap-south-1" # The region mandated by the architecture document
+  region = "ap-south-1"
 }
 
-# The block you just shared:
-module "vpc" {
-  source = "../../modules/vpc"
+# ====================================================================
+# Data Sources: Fetch the Shared Global Network
+# ====================================================================
+data "aws_vpc" "shared" {
+  tags = {
+    Environment = "global"
+  }
+}
+
+# ====================================================================
+# Prod Environment Resources
+# ====================================================================
+module "waf" {
+  source = "../../modules/waf"
 
   environment = "prod"
-  vpc_cidr    = "10.2.0.0/16"
-  azs         = ["ap-south-1a", "ap-south-1b", "ap-south-1c"]
-  
-  public_subnets       = ["10.2.0.0/24", "10.2.1.0/24", "10.2.2.0/24"]
-  private_app_subnets  = ["10.2.32.0/19", "10.2.64.0/19", "10.2.96.0/19"]
-  private_data_subnets = ["10.2.128.0/22", "10.2.132.0/22", "10.2.136.0/22"]
+  alb_arn     = "arn:aws:elasticloadbalancing:ap-south-1:123456789012:loadbalancer/app/echolife-prod-alb/dummy789"
+}
+
+module "s3" {
+  source = "../../modules/s3"
+
+  environment = "prod"
+  bucket_name = "echolife-media-prod-8374929"
+}
+
+resource "aws_security_group" "prod_rds" {
+  name        = "echolife-prod-rds-sg"
+  description = "Security group for Prod RDS instances"
+  vpc_id      = data.aws_vpc.shared.id
+
+  # Ingress from the shared EKS subnets
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.32.0/19", "10.0.64.0/19", "10.0.96.0/19"]
+  }
 }

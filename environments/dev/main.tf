@@ -1,5 +1,3 @@
-# environments/dev/main.tf
-
 terraform {
   required_providers {
     aws = {
@@ -13,14 +11,42 @@ provider "aws" {
   region = "ap-south-1"
 }
 
-module "vpc" {
-  source = "../../modules/vpc"
+# ====================================================================
+# Data Sources: Fetch the Shared Global Network
+# ====================================================================
+data "aws_vpc" "shared" {
+  tags = {
+    Environment = "global"
+  }
+}
+
+# ====================================================================
+# Dev Environment Resources
+# ====================================================================
+module "waf" {
+  source = "../../modules/waf"
 
   environment = "dev"
-  vpc_cidr    = "10.0.0.0/16"
-  azs         = ["ap-south-1a", "ap-south-1b", "ap-south-1c"]
+  alb_arn     = "arn:aws:elasticloadbalancing:ap-south-1:123456789012:loadbalancer/app/echolife-dev-alb/dummy123"
+}
 
-  public_subnets       = ["10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24"]
-  private_app_subnets  = ["10.0.32.0/19", "10.0.64.0/19", "10.0.96.0/19"]
-  private_data_subnets = ["10.0.128.0/22", "10.0.132.0/22", "10.0.136.0/22"]
+module "s3" {
+  source = "../../modules/s3"
+
+  environment = "dev"
+  bucket_name = "echolife-media-dev-8374929"
+}
+
+resource "aws_security_group" "dev_rds" {
+  name        = "echolife-dev-rds-sg"
+  description = "Security group for Dev RDS instances"
+  vpc_id      = data.aws_vpc.shared.id
+
+  # Ingress from the shared EKS subnets
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.32.0/19", "10.0.64.0/19", "10.0.96.0/19"]
+  }
 }
