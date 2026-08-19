@@ -13,10 +13,22 @@ resource "aws_security_group" "vpc_endpoints" {
     from_port       = 443
     to_port         = 443
     protocol        = "tcp"
-    security_groups = [aws_security_group.eks_nodes.id]
+
+    security_groups = [
+      aws_security_group.eks_nodes.id,
+       ]
   }
 
-  tags = { Name = "echolife-${var.environment}-sg-endpoints" }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "echolife-${var.environment}-sg-endpoints"
+  }
 }
 
 # ====================================================================

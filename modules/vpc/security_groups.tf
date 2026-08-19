@@ -39,20 +39,13 @@ resource "aws_security_group" "eks_nodes" {
     self      = true
   }
 
-  # Outbound to Internet (via NAT Gateway) for external AI APIs
+  # UPDATED: Allow all outbound traffic so nodes can resolve DNS, 
+  # reach the EKS API, and pull container images from ECR.
   egress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Outbound Pod-to-Pod (Self-referencing)
-  egress {
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
-    self      = true
   }
 
   tags = { Name = "echolife-${var.environment}-sg-eks-nodes" }
