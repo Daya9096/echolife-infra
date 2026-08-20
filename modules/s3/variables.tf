@@ -1,9 +1,14 @@
 variable "environment" {
-  description = "Deployment environment (dev, stage, prod)"
+  description = "Deployment environment"
+  type        = string
+}
+
+variable "kms_key_alias" {
+  description = "KMS Alias used to encrypt the bucket"
   type        = string
 }
 
 variable "bucket_name" {
-  description = "Name of the S3 bucket (must be globally unique)"
+  description = "Application bucket name"
   type        = string
 }
