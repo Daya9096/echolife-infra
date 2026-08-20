@@ -27,7 +27,7 @@ module "waf" {
   source = "../../modules/waf"
 
   environment = "prod"
-  alb_arn     = "arn:aws:elasticloadbalancing:ap-south-1:123456789012:loadbalancer/app/echolife-prod-alb/dummy789"
+  alb_arn     = "arn:aws:elasticloadbalancing:ap-south-1:123456789012:loadbalancer/app/echolife-prod-alb/dummy123"
 }
 
 module "s3" {
@@ -42,11 +42,50 @@ resource "aws_security_group" "prod_rds" {
   description = "Security group for Prod RDS instances"
   vpc_id      = data.aws_vpc.shared.id
 
-  # Ingress from the shared EKS subnets
   ingress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
     cidr_blocks = ["10.0.32.0/19", "10.0.64.0/19", "10.0.96.0/19"]
   }
+}
+
+# ====================================================================
+# Prod Secrets, RDS, and Compute
+# ====================================================================
+resource "aws_secretsmanager_secret" "rds_credentials" {
+  name        = "echolife/prod/rds/credentials"
+  description = "PostgreSQL credentials for Prod"
+  tags        = { Environment = "prod" }
+}
+
+resource "aws_secretsmanager_secret_version" "rds_credentials_val" {
+  secret_id     = aws_secretsmanager_secret.rds_credentials.id
+  secret_string = jsonencode({ username = "prod_admin", password = "change_me_in_console" })
+}
+
+# Prod Database (High Availability Multi-AZ)
+module "rds" {
+  source                 = "../../modules/rds"
+  environment            = "prod"
+  instance_class         = "db.m7g.xlarge"   
+  multi_az               = true            
+  allocated_storage      = 500               
+  secret_arn             = aws_secretsmanager_secret.rds_credentials.arn
+  vpc_security_group_ids = [aws_security_group.prod_rds.id] 
+}
+
+# Prod EKS Node Pool (Strictly Isolated)
+module "eks_nodes" {
+  source         = "../../modules/eks" 
+  environment    = "prod"
+  instance_types = ["m5.xlarge"]
+  min_size       = 3
+  max_size       = 10
+  
+  kubernetes_taints = [{
+    key    = "environment"
+    value  = "prod"
+    effect = "NO_SCHEDULE"
+  }]
 }
