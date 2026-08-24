@@ -20,6 +20,17 @@ data "aws_vpc" "shared" {
   }
 }
 
+data "aws_subnets" "data" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.shared.id]
+  }
+  
+  tags = {
+    Tier = "PrivateData" 
+  }
+}
+
 # ====================================================================
 # Dev Environment Resources (Existing)
 # ====================================================================
@@ -73,13 +84,16 @@ module "rds" {
   multi_az               = false
   allocated_storage      = 20
   secret_arn             = aws_secretsmanager_secret.rds_credentials.arn
-  # Connecting the security group directly to the database
   vpc_security_group_ids = [aws_security_group.dev_rds.id]
+  
+  # NEW: Injecting the required network variables
+  vpc_id                  = data.aws_vpc.shared.id
+  private_data_subnet_ids = data.aws_subnets.data.ids
 }
 
 # Dev EKS Node Pool (Shared General Compute)
 module "eks_nodes" {
-  source         = "../../modules/eks" 
+  source         = "../../modules/eks"
   environment    = "dev"
   instance_types = ["t3.medium"]
   min_size       = 1
