@@ -13,7 +13,9 @@ provider "aws" {
   region = "ap-south-1"
 }
 
-# 1. Shared Network
+# ====================================================================
+# SHARED GLOBAL NETWORK (Supports Dev, Stage, and Prod EKS Namespaces)
+# ====================================================================
 module "vpc" {
   source               = "../../modules/vpc"
   environment          = "global"
@@ -24,14 +26,48 @@ module "vpc" {
   private_data_subnets = ["10.0.128.0/22", "10.0.132.0/22", "10.0.136.0/22"]
 }
 
-# 2. Global KMS Keys
+# ====================================================================
+# GLOBAL KMS & IAM (Security Core)
+# ====================================================================
 module "kms" {
   source      = "../../modules/kms"
   environment = "global"
 }
 
-# 3. Global EKS Cluster & Node IAM Roles
 module "iam" {
   source      = "../../modules/iam"
   environment = "global"
+}
+
+# ====================================================================
+# SHARED EKS CLUSTER
+# ====================================================================
+module "eks" {
+  source = "../../modules/eks"
+
+  project_name = "echolife"
+  environment  = "global"
+  aws_region   = "ap-south-1"
+
+  cluster_name    = "echolife-eks"
+  cluster_version = "1.33"
+
+  # VPC Module Outputs mapped to EKS
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_app_subnet_ids
+  public_subnet_ids  = module.vpc.public_subnet_ids
+
+  # Node Group
+  node_group_name = "default-node-group"
+  instance_types  = ["c7i-flex.large"]
+
+  desired_size = 2
+  min_size     = 2
+  max_size     = 4
+
+  tags = {
+    Project     = "echolife"
+    Environment = "global"
+    ManagedBy   = "Terraform"
+  }
 }

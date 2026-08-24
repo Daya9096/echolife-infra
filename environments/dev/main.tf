@@ -69,17 +69,17 @@ resource "aws_secretsmanager_secret_version" "rds_credentials_val" {
 module "rds" {
   source                 = "../../modules/rds"
   environment            = "dev"
-  instance_class         = "db.t4g.micro"   
-  multi_az               = false            
-  allocated_storage      = 20               
+  instance_class         = "db.t4g.micro"
+  multi_az               = false
+  allocated_storage      = 20
   secret_arn             = aws_secretsmanager_secret.rds_credentials.arn
-  # We connect the security group you created above directly to the database here!
-  vpc_security_group_ids = [aws_security_group.dev_rds.id] 
+  # Connecting the security group directly to the database
+  vpc_security_group_ids = [aws_security_group.dev_rds.id]
 }
 
 # Dev EKS Node Pool (Shared General Compute)
 module "eks_nodes" {
-  source         = "../../modules/eks" # Adjust path to match your actual eks module folder
+  source         = "../../modules/eks" 
   environment    = "dev"
   instance_types = ["t3.medium"]
   min_size       = 1
