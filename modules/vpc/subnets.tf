@@ -12,6 +12,7 @@ resource "aws_subnet" "public" {
     Name                     = "echolife-${var.environment}-public-${var.azs[count.index]}"
     Tier                     = "Public"
     "kubernetes.io/role/elb" = "1" # Required for public EKS ALBs
+    "kubernetes.io/cluster/echolife-eks" = "shared"
   }
 }
 
@@ -28,6 +29,7 @@ resource "aws_subnet" "private_app" {
     Name                              = "echolife-${var.environment}-app-${var.azs[count.index]}"
     Tier                              = "PrivateApp"
     "kubernetes.io/role/internal-elb" = "1" # Required for internal EKS ALBs
+    "kubernetes.io/cluster/echolife-eks" = "shared"
   }
 }
 
